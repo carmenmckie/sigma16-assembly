@@ -22,7 +22,7 @@
 ;	} 
 ;
 ;Register Use Table 
-;
+; 
 ;R1 = constant 1
 ;R2 = n
 ;R3 = i
