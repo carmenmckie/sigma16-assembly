@@ -1,0 +1,119 @@
+;HLL Java Algorithm
+;
+;	boolean overflow = false; 
+;	int possum = 0; 
+;	int negcount = 0; 
+;	int oddcount = 0; 
+;	int n = 12; //(n = x.length) 
+;	int[] x = {3,-6,27,101,50,0,-20,-21,19,6,4,-10};
+;	for(int i=0;i<n;i++){  //loop through the array checking for the criteria (note: n = x.length)
+;		if(x[i] >= 0) { 
+;			possum += x[i]; //add the element to possum
+;			if(!(x[i]%2 == 0)){ //if the element is positive AND cannot be exactly divided by 2 then oddcount gets incremented
+;				oddcount += 1; 
+;			}
+;		}
+;		if(x[i] < 0) { //if the element is less than 0 
+;			negcount += 1; //increase negcount by 1 
+;		}
+;		if(possum < 0){ //if possum has overflowed(possum >= 32768), it will be a negative value in two's complement
+;			overflow = true; //set overflow to be true 
+;		}
+;	} 
+;
+;Register Use Table 
+;
+;R1 = constant 1
+;R2 = n
+;R3 = i
+;R4 = X[i]
+;R5 = possum
+;R6 = negcount
+;R7 = oddcount
+;R8 = boolean overflow 
+;R9 = temporary boolean for compare instructions
+;R10 = used for the bitwise AND result 
+;
+;Initialisation
+;Set-up constants and initialise variables
+;No need to load R4, R9, or R10 as they are set within the program appropriately
+;
+			ADD R5,R0,R0 ;possum = 0
+			ADD R6,R0,R0 ;negcount = 0
+			ADD R7,R0,R0 ;oddcount = 0
+			ADD R8,R0,R0 ;overflow = 0 (0 / false at this point)
+			LOAD R2,n[R0] ;R2 = n 
+			LEA R1,1[R0] ;R1 = constant 1 
+			ADD R3,R0,R0 ;R3 = i, initially 0 
+;
+;For Loop - for(int i=0;i<n;i++)
+;The increment (i++) takes place further down this program to emulate Java where i++ increments at the end of each iteration rather than the start
+;
+FOR			CMPLT R9,R3,R2 ;R9 = checking if (i<n) is true, if i<n, enter the loop
+			JUMPF R9,END[R0] ;If (!(i<n)), then the loop is not entered - go to the end of the program
+			LOAD R4,X[R3] ;Loop is entered and R4 = X[i] because R3 = i, this will loop through the next array element at each iteration 
+;
+;The first 'if' statement in the loop: if(X[i] >= 0)
+;"1. Calculate the sum of all the elements of X that are positive (>0) and store this sum in the variable possum;"
+;
+IF			CMPLT R9,R4,R0 ;Checking if (X[i] >= 0) is true or false by checking if R4 is less than 0
+			JUMPT R9,NEGCOUNT[R0] ;If R4 is less than 0 - the condition is not met, jump to incrementing negcount (skip adding to possum)
+			ADD R5,R4,R5 ;IF (X[i] >= 0), possum = possum + X[i] (add to possum as required) 
+;
+;"3. Count the number of positive elements of X that are odd numbers and store this count in the variable oddcount."
+;If we get to this point in the program, X[i] is positive, so now we can check if it is also odd or not. 
+;"Note that an odd number is one that does not divide exactly by 2 and so has a least significant bit of 1" 
+;To check this, we need to use the Bitwise AND to isolate the least significant bit and check if it is 1. 
+;ANDing any bit with 0 = gives 0, ANDing any bit with 1 = leaves unchanged. So we will use $0001 (leaving
+;the least significant bit unchanged) as a mask because it masks the bits that are not relevant in determining if X[i] is odd or not odd
+;If the least significant bit is 0 - it is not an odd number, and the oddcount will not be affected by 0 being added 
+;
+			AND R10,R4,R1 ;Bitwise 'AND' X[i] with 1 ($0001)
+			ADD R7,R7,R10 ;If the least significant bit is 1(it is an oddnumber) and this will increase the oddcount. 
+			JUMP OVERFLOW[R0] ;Jump to checking if possum has overflowed, because we do not need to check if it is negative - if we get here, it is a positive number
+;
+;If we get here, it means X[i] has to be < 0 as 'CMPLT R9,R4,R0' was true which means, the negcount can be incremented
+;"2. Count the number of elements of X that are negative (<0) and store this count in the variable negcount;"
+;
+NEGCOUNT		ADD R6,R6,R1 ;negcount = negcount + 1
+;
+;Checking For Overflow
+;if(possum < 0), then it means an overflow has occurred, and we set overflow(R8) to true (boolean true = 1) 
+;
+OVERFLOW	CMPLT R8,R5,R0 ;if possum < 0, change R8 (boolean overflow) to be 1 (true) 
+			ADD R3,R1,R3 ; Equivalent to i++ in the 'for loop' (i + 1) - increment i each time the loop finishes
+			JUMP FOR[R0] ;Jump back to the start of the loop to see if another iteration is needed
+;
+;End of the program
+;
+END			STORE R5,possum[R0] ;Save possum into R5
+			STORE R6,negcount[R0] ;Save negcount into R6
+			STORE R7,oddcount[R0] ;Save oddcount into R7
+			STORE R8,overflow[R0] ;Save overflow into R8
+			TRAP R0,R0,R0 ;Terminate 
+;
+;The Data Area: 
+;Variables:
+;Variables are placed in memory after the program: 
+;
+n			DATA	12 ;"use DATA statements to give n the initial value 12"
+possum			DATA	0 ;"These 4 variables should all be initialised to 0 in their DATA statements."
+oddcount		DATA	0 ;Initialising oddcount to 0
+negcount		DATA	0 ;Initialising negcount to 0
+overflow		DATA	0 ;Initialising boolean overflow to 0 (false, will change to true(1) if overflow occurs in program)
+;
+;Array: 
+;Array elements are placed in memory after the program: 
+;Initialising array to values specified in the instructions:
+X			DATA	3 ;X[0]
+			DATA	-6
+			DATA	27
+			DATA	101
+			DATA	50
+			DATA	0
+			DATA	-20
+			DATA	-21
+			DATA	19
+			DATA	6
+			DATA	4
+			DATA	-10 ;X[n-1]
